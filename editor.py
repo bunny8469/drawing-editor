@@ -1,4 +1,9 @@
 import tkinter as tk
+from tkinter import font
+import tkfontawesome
+
+
+tkfontawesome.init()
 
 WIDTH = 1280
 HEIGHT = 720
@@ -13,13 +18,18 @@ button_style = {
 }
 
 class Button(tk.Button):
-    def __init__(self, *args, title, **kwargs):
+    def __init__(self, *args, title,icon=None, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.title = title
+        self.icon=icon
         self.hover_text = tk.Label(self.master, font=("Arial", 10), relief=tk.FLAT)
         self.hover_text.pack(side="top", fill="x")
-
+        if icon:
+            icon_font = font.Font(family=tkfontawesome.get_fontawesome_font_family(), size=16)
+            self.config(compound=tk.LEFT, text=f" {icon} {title}", font=(icon_font))
+        else:
+            self.config(text=title)
         # Bind events for hover effect
         self.bind("<Enter>", self.on_enter)
         self.bind("<Leave>", self.on_leave)
