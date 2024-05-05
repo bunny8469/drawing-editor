@@ -94,39 +94,11 @@ class DrawingEditor:
         self.canvas.bind("<Button-1>", self.on_canvas_click)
         self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_canvas_release)
-        self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
-        self.canvas.bind("<Button-3>",self.on_canvas_right_click)
 
         self.start_x = None
         self.start_y = None
         self.drawing = False
         self.current_object = None
-    def on_canvas_right_click(self, event):
-        # Get the object ID at the right-click position
-        obj = self.canvas.find_closest(event.x, event.y)
-        if obj:
-            obj = obj[0]  # Extracting the object ID from the tuple
-
-            # Create a context menu for editing object properties
-            menu = tk.Menu(self.master, tearoff=0)
-
-            # Color submenu
-            color_menu = tk.Menu(menu, tearoff=0)
-            colors = ["black", "red", "blue", "green", "yellow"]  # Add more colors as needed
-            for color in colors:
-                color_menu.add_command(label=color, command=lambda c=color: self.change_object_color(obj, c))
-            menu.add_cascade(label="Color", menu=color_menu)
-
-            # Other options
-            menu.add_command(label="Select", command=lambda: self.select_object(obj))
-            menu.add_command(label="Copy", command=lambda: self.copy_object(obj))
-            menu.add_command(label="Delete", command=lambda: self.delete_object(obj))
-
-            # Display the context menu at the right-click position
-            menu.tk_popup(event.x_root, event.y_root)
-    def change_object_color(self, obj, color):
-        # Change the color of the selected object
-        self.canvas.itemconfig(obj, fill=color)
         self.select = False
 
     def set_current_object(self, object_type):
@@ -170,7 +142,9 @@ class DrawingEditor:
         if object_type == "line":
             return self.canvas.create_line(start_x, start_y, end_x, end_y, **kwargs)
         elif object_type == "rectangle":
-            return self.canvas.create_rectangle(start_x, start_y, end_x, end_y, **kwargs)
+            return self.canvas.create_rectangle(start_x, start_y, end_x, end_y, fill=random_color())
+        else:
+            return self.canvas.create_rectangle(start_x, start_y, end_x, end_y, outline=random_color(), dash=(4, 2))
 
     def select_object(self, object):
         # Select object on canvas
