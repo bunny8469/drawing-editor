@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import font
 # from tkfontawesome import tfa_init
 import tkfontawesome as tkfa
+from tkinter.colorchooser import askcolor
 
 
 # tfa_init()
@@ -75,17 +76,19 @@ class DrawingEditor:
         self.left_panel = tk.Frame(self.master, width=150)
         self.left_panel.pack(side=tk.LEFT, fill=tk.Y)
         self.left_panel.pack_propagate(False)
-        self.color_picker_label = tk.Label(self.left_panel, text="Select Color:", **button_style)
-        self.color_picker_label.pack(fill=tk.X)
+        # self.color_picker_label = tk.Label(self.left_panel, text="Select Color:", **button_style)
+        # self.color_picker_label.pack(fill=tk.X)
+        self.color_picker_button = Button(self.left_panel, title="Select Color", command=self.pick_color)
+        self.color_picker_button.pack(fill=tk.X)
 
         self.color_variable = tk.StringVar(self.master)
-        self.color_variable.set("black")  # Default color
+        self.color_variable.set("(0,0,0)");  # Default color
 
         colors = ["black", "red", "blue", "green", "yellow"]  # Add more colors as needed
 
-        self.color_picker = tk.OptionMenu(self.left_panel, self.color_variable, *colors)
-        self.color_picker.config(width=20, **button_style)
-        self.color_picker.pack(fill=tk.X)
+        # self.color_picker = tk.OptionMenu(self.left_panel, self.color_variable, *colors)
+        # self.color_picker.config(width=20, **button_style)
+        # self.color_picker.pack(fill=tk.X)
         # Add buttons with styling
         # self.line_button = Button(self.left_panel, title="Draw Line", command=lambda: self.set_current_object("line"), **button_style)
         # self.line_button = Button(self.left_panel, title="Draw Line",icon="fa-long-arrow-right", command=lambda: self.set_current_object("line"), **button_style)
@@ -98,9 +101,9 @@ class DrawingEditor:
         self.rect_button.config(width=20)
         self.rect_button.pack(fill=tk.X)
         
-        self.rect_button = Button(self.left_panel, title="Select", command=lambda: self.set_current_object(None), **button_style)
-        self.rect_button.config(width=20)
-        self.rect_button.pack(fill=tk.X)
+        # self.rect_button = Button(self.left_panel, title="Select", command=lambda: self.set_current_object(None), **button_style)
+        # self.rect_button.config(width=20)
+        # self.rect_button.pack(fill=tk.X)
 
         self.selected_object = None
         self.objects = []
@@ -119,9 +122,14 @@ class DrawingEditor:
         self.drawing = False
         self.current_object = None
         self.select = True
-
+    def pick_color(self):
+        color = askcolor(title="Choose line color")[1]  
+        # self.color_variable=color
+        if color:
+            rgb_color = tuple(int(color[i:i+2], 16) for i in (1, 3, 5))
+            self.color_variable.set(rgb_color)
+            # self.canvas.create_line(50, 100, 250, 100, fill=color, width=2)
     def on_canvas_right_click(self, event):
-        # Get the object ID at the right-click position
         obj = self.canvas.find_closest(event.x, event.y)
         if obj:
             obj = obj[0]  # Extracting the object ID from the tuple
@@ -178,22 +186,61 @@ class DrawingEditor:
             if self.current_object and self.select:
                 self.canvas.delete(self.current_object)  # Delete previous temporary line
             self.current_object = self.draw_object(self.selected_object, self.start_x, self.start_y, event.x, event.y, fill="black")
-            self.select = True
+    # def on_mouse_drag(self, event):
+    #     if self.current_object is None:
+    #         self.start_x = event.x
+    #         self.start_y = event.y
+    #         self.current_object = self.draw_object(self.selected_object, self.start_x, self.start_y, event.x, event.y, fill="black")
+    #     else:
+    #         # Update the end coordinates of the current object
+    #         self.canvas.coords(self.current_object, self.start_x, self.start_y, event.x, event.y)
+
+    def create_rounded_rectangle(self, x1, y1, x2, y2, radius, **kwargs):
+    # Create a rectangle without rounded corners
+        rectangle = self.canvas.create_rectangle(x1 + radius, y1, x2 - radius, y2, **kwargs)
+
+        # Draw semi-circles to create rounded corners
+        self.canvas.create_arc(x1, y1, x1 + 2 * radius, y1 + 2 * radius, start=90, extent=90, style=tk.ARC, outline="", **kwargs)
+        self.canvas.create_arc(x2 - 2 * radius, y1, x2, y1 + 2 * radius, start=0, extent=90, style=tk.ARC, outline="", **kwargs)
+        self.canvas.create_arc(x2 - 2 * radius, y2 - 2 * radius, x2, y2, start=270, extent=90, style=tk.ARC, outline="", **kwargs)
+        self.canvas.create_arc(x1, y2 - 2 * radius, x1 + 2 * radius, y2, start=180, extent=90, style=tk.ARC, outline="", **kwargs)
+
+        # Draw lines to connect the semi-circles
+        self.canvas.create_line(x1 + radius, y1, x2 - radius, y1, **kwargs)
+        self.canvas.create_line(x2, y1 + radius, x2, y2 - radius, **kwargs)
+        self.canvas.create_line(x1 + radius, y2, x2 - radius, y2, **kwargs)
+        self.canvas.create_line(x1, y1 + radius, x1, y2 - radius, **kwargs)
+
+        return rectangle
 
     def draw_object(self, object_type, start_x, start_y, end_x, end_y, **kwargs):
         # Draw object on canvas based on type and coordinates
         color = self.color_variable.get()
-        kwargs["fill"] = color
+        # print(color);
+        hex_color = self.rgb_to_hex(color)
+        # print(hex_color)
+        kwargs.pop('fill', None)
         if object_type == "line":
-            return self.canvas.create_line(start_x, start_y, end_x, end_y, **kwargs)
+            return self.canvas.create_line(start_x, start_y, end_x, end_y, fill=hex_color, **kwargs)
         elif object_type == "rectangle":
-            return self.canvas.create_rectangle(start_x, start_y, end_x, end_y, **kwargs)
+            return self.create_rounded_rectangle(start_x,start_y,end_x,end_y,1);
         else:
             kwargs["fill"] = None
-            return self.canvas.create_rectangle(start_x, start_y, end_x, end_y, dash=(2,4), **kwargs)
+            return self.canvas.create_rectangle(start_x, start_y, end_x, end_y, dash=(2, 4), fill=hex_color, **kwargs)
 
+    def rgb_to_hex(self, rgb_color):
+        rgb_values = tuple(map(int, rgb_color.strip('()').split(',')))
+        r = max(0, min(int(rgb_values[0]), 255))
+        g = max(0, min(int(rgb_values[1]), 255))
+        b = max(0, min(int(rgb_values[2]), 255))
+        
+        # Convert each component to hexadecimal format
+        hex_color = "#{:02x}{:02x}{:02x}".format(r, g, b)
+        # print("value",hex_color);
+        return str(hex_color)
+        
     def select_object(self, object):
-        # Select object on canvas
+    # Select object on canvas
         pass
 
     def delete_object(self, object):
