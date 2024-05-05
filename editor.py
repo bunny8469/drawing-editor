@@ -30,6 +30,16 @@ class Button(tk.Button):
     def on_leave(self, enter):
         self.hover_text.configure(text="")
 
+import random
+def random_color():
+    # Generate random values for red, green, and blue components
+    red = random.randint(0, 255)
+    green = random.randint(0, 255)
+    blue = random.randint(0, 255)
+    # Format the color in hexadecimal format
+    color_hex = "#{:02x}{:02x}{:02x}".format(red, green, blue)
+    return color_hex
+
 class DrawingEditor:
     def __init__(self, master):
         self.master = master
@@ -44,15 +54,15 @@ class DrawingEditor:
         self.left_panel.pack_propagate(False)
 
         # Add buttons with styling
-        self.line_button = Button(self.left_panel, title="Draw Line", command=self.draw_object, **button_style)
+        self.line_button = Button(self.left_panel, title="Draw Line", command=lambda: self.set_current_object("line"), **button_style)
         self.line_button.config(width=20)
         self.line_button.pack(side=tk.TOP, fill=tk.X)
-        self.line_button.bind("<Button-1>", self.setCurrentObject("line"))
+        # self.line_button.bind("<Button-1>", self.set_current_object("line"))
 
-        self.rect_button = Button(self.left_panel, title="Draw Rectangle", command=self.select_object, **button_style)
+        self.rect_button = Button(self.left_panel, title="Draw Rectangle", command=lambda: self.set_current_object("rectangle"), **button_style)
         self.rect_button.config(width=20)
         self.rect_button.pack(fill=tk.X)
-        self.line_button.bind("<Button-1>", self.setCurrentObject("rectangle"))
+        # self.line_button.bind("<Button-1>", self.set_current_object("rectangle"))
 
         self.selected_object = None
         self.objects = []
@@ -68,11 +78,11 @@ class DrawingEditor:
         self.drawing = False
         self.start_x = None
         self.start_y = None
-        self.current_line = None
+        self.current_object = None
 
     def set_current_object(self, object_type):
         self.selected_object = object_type
-        pass
+        print(self.selected_object)
 
     def create_toolbar(self):
         # Create toolbar buttons or menu here
@@ -84,30 +94,28 @@ class DrawingEditor:
         self.start_y = event.y
         self.drawing = True
 
-        return 
-    
     def on_canvas_release(self, event):
         # Handle canvas release event
         if self.drawing:
             self.draw_object(self.selected_object, self.start_x, self.start_y, event.x, event.y)
             self.drawing = False
-            if self.current_line:
-                self.canvas.delete(self.current_line)  # Delete the temporary line
+            if self.current_object:
+                self.canvas.delete(self.current_object)  # Delete the temporary line
 
     def on_mouse_drag(self, event):
         # Handle mouse drag event
         if self.drawing:
-            if self.current_line:
-                self.canvas.delete(self.current_line)  # Delete previous temporary line
-            self.current_line = self.canvas.create_line(self.start_x, self.start_y, event.x, event.y, fill="black")
-
-
+            if self.current_object:
+                self.canvas.delete(self.current_object)  # Delete previous temporary line
+            
+            self.current_object = self.draw_object(self.selected_object, self.start_x, self.start_y, event.x, event.y, fill="black")
 
     def draw_object(self, object_type, start_x, start_y, end_x, end_y, **kwargs):
         # Draw object on canvas based on type and coordinates
         if object_type == "line":
-            self.canvas.create_line(start_x, start_y, end_x, end_y, **kwargs)
-        pass
+            return self.canvas.create_line(start_x, start_y, end_x, end_y, fill=random_color())
+        elif object_type == "rectangle":
+            return self.canvas.create_rectangle(start_x, start_y, end_x, end_y, outline=random_color())
 
     def select_object(self, object):
         # Select object on canvas
