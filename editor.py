@@ -60,7 +60,17 @@ class DrawingEditor:
         self.left_panel = tk.Frame(self.master, width=150)
         self.left_panel.pack(side=tk.LEFT, fill=tk.Y)
         self.left_panel.pack_propagate(False)
+        self.color_picker_label = tk.Label(self.left_panel, text="Select Color:", **button_style)
+        self.color_picker_label.pack(fill=tk.X)
 
+        self.color_variable = tk.StringVar(self.master)
+        self.color_variable.set("black")  # Default color
+
+        colors = ["black", "red", "blue", "green", "yellow"]  # Add more colors as needed
+
+        self.color_picker = tk.OptionMenu(self.left_panel, self.color_variable, *colors)
+        self.color_picker.config(width=20, **button_style)
+        self.color_picker.pack(fill=tk.X)
         # Add buttons with styling
         self.line_button = Button(self.left_panel, title="Draw Line", command=lambda: self.set_current_object("line"), **button_style)
         self.line_button.config(width=20)
@@ -84,11 +94,39 @@ class DrawingEditor:
         self.canvas.bind("<Button-1>", self.on_canvas_click)
         self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_canvas_release)
+        self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
+        self.canvas.bind("<Button-3>",self.on_canvas_right_click)
 
         self.start_x = None
         self.start_y = None
         self.drawing = False
         self.current_object = None
+    def on_canvas_right_click(self, event):
+        # Get the object ID at the right-click position
+        obj = self.canvas.find_closest(event.x, event.y)
+        if obj:
+            obj = obj[0]  # Extracting the object ID from the tuple
+
+            # Create a context menu for editing object properties
+            menu = tk.Menu(self.master, tearoff=0)
+
+            # Color submenu
+            color_menu = tk.Menu(menu, tearoff=0)
+            colors = ["black", "red", "blue", "green", "yellow"]  # Add more colors as needed
+            for color in colors:
+                color_menu.add_command(label=color, command=lambda c=color: self.change_object_color(obj, c))
+            menu.add_cascade(label="Color", menu=color_menu)
+
+            # Other options
+            menu.add_command(label="Select", command=lambda: self.select_object(obj))
+            menu.add_command(label="Copy", command=lambda: self.copy_object(obj))
+            menu.add_command(label="Delete", command=lambda: self.delete_object(obj))
+
+            # Display the context menu at the right-click position
+            menu.tk_popup(event.x_root, event.y_root)
+    def change_object_color(self, obj, color):
+        # Change the color of the selected object
+        self.canvas.itemconfig(obj, fill=color)
         self.select = False
 
     def set_current_object(self, object_type):
@@ -127,12 +165,12 @@ class DrawingEditor:
 
     def draw_object(self, object_type, start_x, start_y, end_x, end_y, **kwargs):
         # Draw object on canvas based on type and coordinates
+        color = self.color_variable.get()
+        kwargs["fill"] = color
         if object_type == "line":
-            return self.canvas.create_line(start_x, start_y, end_x, end_y, fill=random_color())
+            return self.canvas.create_line(start_x, start_y, end_x, end_y, **kwargs)
         elif object_type == "rectangle":
-            return self.canvas.create_rectangle(start_x, start_y, end_x, end_y, fill=random_color())
-        else:
-            return self.canvas.create_rectangle(start_x, start_y, end_x, end_y, outline=random_color(), dash=(4, 2))
+            return self.canvas.create_rectangle(start_x, start_y, end_x, end_y, **kwargs)
 
     def select_object(self, object):
         # Select object on canvas
