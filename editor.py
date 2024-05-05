@@ -1,9 +1,13 @@
 import tkinter as tk
 from tkinter import font
-import tkfontawesome
+# from tkfontawesome import tfa_init
+import tkfontawesome as tkfa
 
 
-tkfontawesome.init()
+# tfa_init()
+# tkfontawesome.load_font(fontawesome_file_path=None)
+# tkfa._install_icon_font()
+
 
 WIDTH = 1280
 HEIGHT = 720
@@ -26,8 +30,9 @@ class Button(tk.Button):
         self.hover_text = tk.Label(self.master, font=("Arial", 10), relief=tk.FLAT)
         self.hover_text.pack(side="top", fill="x")
         if icon:
-            icon_font = font.Font(family=tkfontawesome.get_fontawesome_font_family(), size=16)
-            self.config(compound=tk.LEFT, text=f" {icon} {title}", font=(icon_font))
+            icon_font = font.Font(family="FontAwesome", size=16)
+            self.config(text=icon, font=icon_font)
+        # elif title:
         else:
             self.config(text=title)
         # Bind events for hover effect
@@ -82,11 +87,14 @@ class DrawingEditor:
         self.color_picker.config(width=20, **button_style)
         self.color_picker.pack(fill=tk.X)
         # Add buttons with styling
-        self.line_button = Button(self.left_panel, title="Draw Line", command=lambda: self.set_current_object("line"), **button_style)
+        # self.line_button = Button(self.left_panel, title="Draw Line", command=lambda: self.set_current_object("line"), **button_style)
+        # self.line_button = Button(self.left_panel, title="Draw Line",icon="fa-long-arrow-right", command=lambda: self.set_current_object("line"), **button_style)
+        self.line_button = Button(self.left_panel, title="Draw Line", icon="\u2014", command=lambda: self.set_current_object("line"), **button_style)
+
         self.line_button.config(width=20)
         self.line_button.pack(side=tk.TOP, fill=tk.X)
 
-        self.rect_button = Button(self.left_panel, title="Draw Rectangle", command=lambda: self.set_current_object("rectangle"), **button_style)
+        self.rect_button = Button(self.left_panel, title="Draw Rectangle",icon="\uf0c8", command=lambda: self.set_current_object("rectangle"), **button_style)
         self.rect_button.config(width=20)
         self.rect_button.pack(fill=tk.X)
         
@@ -226,6 +234,7 @@ class DrawingEditor:
 
 def main():
     root = tk.Tk()
+    # font.Font(root, root.cget("font")).actual()
     app = DrawingEditor(root)
     root.mainloop()
 
