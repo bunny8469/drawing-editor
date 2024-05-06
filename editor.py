@@ -89,7 +89,7 @@ class DrawingEditor:
 
         self.selected_type = None
         self.selected_objects = []
-        self.clipboard_object = None
+        self.clipboard_objects = []
         self.objects = []
 
         # Toolbar or menu creation
@@ -100,6 +100,10 @@ class DrawingEditor:
         self.drawing = False
         self.current_object = None
         self.select = True
+
+        self.dragging = False
+        self.drag_start_x = 0
+        self.drag_start_y = 0
 
         self.proximity_threshold = 10
         
@@ -259,15 +263,21 @@ class DrawingEditor:
 
     def on_canvas_click(self, event):
         # Handle canvas click event
+
+        nearest_object = self.get_closest_element(event)
+        if nearest_object in self.selected_objects:
+            self.dragging = True
+        else:
+            self.drawing = True
+
         self.start_x = event.x
         self.start_y = event.y
-        self.drawing = True
 
         if self.current_object and self.select:
             self.canvas.delete(self.current_object)
         self.current_object = None
-        
-        if not (event.state & 0x4):
+
+        if (not (event.state & 0x4)) and not self.dragging:
             self.dehighlight_object()
 
     def on_canvas_release(self, event):
@@ -280,11 +290,13 @@ class DrawingEditor:
                 self.current_object = self.draw_object(self.selected_type, self.start_x, self.start_y, event.x, event.y, realObject=True)
                 self.select = (self.selected_type == None)
             self.drawing = False
-        
+
         if not self.selected_type:
             if event.x == self.start_x and event.y == self.start_y:
                 drawing_object = self.get_closest_element(event)
                 self.highlight_object(drawing_object)
+        
+        self.dragging = False
 
     def on_mouse_drag(self, event):
         # Handle mouse drag event
@@ -293,6 +305,18 @@ class DrawingEditor:
                 self.canvas.delete(self.current_object)  # Delete previous temporary line
             self.current_object = self.draw_object(self.selected_type, self.start_x, self.start_y, event.x, event.y, fill="black")
             self.select = True
+
+        elif self.dragging and self.selected_objects:
+            dx = event.x - self.start_x
+            dy = event.y - self.start_y
+            for selected_object in self.selected_objects:
+                
+                # Move the selected object by the offset
+                self.canvas.move(selected_object, dx, dy)
+                
+                # Update drag start position
+                self.start_x = event.x
+                self.start_y = event.y
     
     def create_rectangle(self, x1, y1, x2, y2, radius,type_rect, **kwargs):
         points = [x1 + radius, y1,
