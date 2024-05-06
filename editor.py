@@ -158,6 +158,8 @@ class DrawingEditor:
         self.drawing = False
         self.current_object = None
         self.select = True
+
+        self.threshold = 10
         
         # self.rect_type=None
         # self.rect_type=tk.StringVar(self.master)
@@ -171,10 +173,13 @@ class DrawingEditor:
             # self.canvas.create_line(50, 100, 250, 100, fill=color, width=2)
 
     def on_canvas_right_click(self, event):
-        obj = self.canvas.find_closest(event.x, event.y)
-        if obj:
-            obj1=obj
-            obj = obj[0]  # Extracting the object ID from the tuple
+        closest_objects = self.canvas.find_overlapping(
+            event.x - self.threshold, event.y - self.threshold,
+            event.x + self.threshold, event.y + self.threshold
+        )
+        # obj = self.canvas.find_closest(event.x, event.y)
+        if closest_objects:
+            obj = closest_objects[0]  # Extracting the object ID from the tuple
             
 
             # Create a context menu for editing object properties
