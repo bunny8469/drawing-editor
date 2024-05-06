@@ -159,7 +159,7 @@ class DrawingEditor:
         self.current_object = None
         self.select = True
 
-        self.threshold = 10
+        self.proximity_threshold = 10
         
         # self.rect_type=None
         # self.rect_type=tk.StringVar(self.master)
@@ -174,8 +174,8 @@ class DrawingEditor:
 
     def on_canvas_right_click(self, event):
         closest_objects = self.canvas.find_overlapping(
-            event.x - self.threshold, event.y - self.threshold,
-            event.x + self.threshold, event.y + self.threshold
+            event.x - self.proximity_threshold, event.y - self.proximity_threshold,
+            event.x + self.proximity_threshold, event.y + self.proximity_threshold
         )
         # obj = self.canvas.find_closest(event.x, event.y)
         if closest_objects:
@@ -200,7 +200,6 @@ class DrawingEditor:
             
             # print(self.selected_object)
             if (self.selected_object=="rectangle"):
-                # print("rishabh")
                 types_menu=tk.Menu(menu,tearoff=0)
                 types=["rounded","square"]
                 for type1 in types:
