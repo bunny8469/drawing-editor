@@ -87,21 +87,31 @@ class GroupComposite(DrawingObject):
         if obj in self.objects:
             self.objects.remove(obj)
 
+    def recurse_object(self, func, group):
+        for obj in group.objects:
+            if type(obj) == int:
+                func(obj)
+            else:
+                self.recurse_object(func, obj)
+
     def get_bounding_box(self):
         # Calculate the bounding box of the group based on the objects it contains
         if not self.objects:
             return None
         
-        coordinates = []
-        for i in range(4):
-            for obj in self.objects:
-                coordinates.append((self.canvas.coords(obj)[0], self.canvas.coords(obj)[1]))
-                coordinates.append((self.canvas.coords(obj)[2], self.canvas.coords(obj)[3]))
+        self.coordinates = []
+        self.recurse_object(lambda obj: self.coordinates.append((self.canvas.coords(obj)[0], self.canvas.coords(obj)[1])), self)
+        self.recurse_object(lambda obj: self.coordinates.append((self.canvas.coords(obj)[2], self.canvas.coords(obj)[3])), self)
+        # for i in range(4):
+        #     for obj in self.objects:
+        #         if type(obj) != int:
+                    # coordinates.append((self.canvas.coords(obj)[0], self.canvas.coords(obj)[1]))
+                    # coordinates.append((self.canvas.coords(obj)[2], self.canvas.coords(obj)[3]))
 
-        min_x = min(coordinates, key=lambda x: x[0])[0]
-        min_y = min(coordinates, key=lambda x: x[1])[1]
-        max_x = max(coordinates, key=lambda x: x[0])[0]
-        max_y = max(coordinates, key=lambda x: x[1])[1]
+        min_x = min(self.coordinates, key=lambda x: x[0])[0]
+        min_y = min(self.coordinates, key=lambda x: x[1])[1]
+        max_x = max(self.coordinates, key=lambda x: x[0])[0]
+        max_y = max(self.coordinates, key=lambda x: x[1])[1]
 
 
         return min_x, min_y, max_x, max_y
@@ -151,9 +161,10 @@ class DrawingEditor:
         print(self.selected_objects)
         for selected_object in self.selected_objects:
             if type(selected_object) != int:
-                print(selected_object)
-                for object in selected_object.objects:
-                    self.canvas.itemconfig(object, width=1)
+                func = lambda obj: self.canvas.itemconfig(obj, width=1)
+                selected_object.recurse_object(func, selected_object)
+                # for object in selected_object.objects:
+                #     self.canvas.itemconfig(object, width=1)
                 if self.bounding_rect:
                     self.canvas.delete(self.bounding_rect)
                     self.bounding_rect = None
@@ -168,8 +179,10 @@ class DrawingEditor:
             self.bounding_rect = self.canvas.create_rectangle(*coords, outline="black", dash=(2,4))
             self.selected_objects.append(object)
             print(self.selected_objects)
-            for object in object.objects:
-                self.canvas.itemconfig(object, width=5)
+            func = lambda obj: self.canvas.itemconfig(obj, width = 5)
+            object.recurse_object(func, object)
+            # for object in object.objects:
+            #     self.canvas.itemconfig(object, width=5)
 
         else:
             self.canvas.itemconfig(object, width=5)
@@ -309,7 +322,7 @@ class DrawingEditor:
         self.rect_button.pack(fill=tk.X)
         
         # Select button
-        self.rect_button = Button(self.left_panel, title="Ungroup", command=lambda: self.ungroup(None), **button_style)
+        self.rect_button = Button(self.left_panel, title="Ungroup", command=lambda: self.ungroup_objects(), **button_style)
         self.rect_button.pack(fill=tk.X)
         
         # Event bindings
@@ -511,15 +524,13 @@ class DrawingEditor:
             group.add_object(obj)
         self.groups.append(group)
 
-    def ungroup_objects(self, group):
-        new_selected_objects = []
+    def ungroup_objects(self):
+        self.selected_objects = []
         for obj in self.selected_objects:
-            if obj.group:
-                obj.group.remove_object(obj)
-                obj.group = None
-            else:
-                new_selected_objects.append(obj)
-        self.selected_objects = new_selected_objects
+            if type(obj) != int:
+                for object in obj.objects:
+                    self.selected_objects.append(object)
+                self.groups.remove(obj)
 
     def save_drawing(self, filename):
         file_path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text files", "*.txt")])
