@@ -605,6 +605,8 @@ class DrawingEditor:
                         self.export_rectangle_to_xml(root, obj)
                     elif self.canvas.type(obj) == "line":
                         self.export_line_to_xml(root, obj)
+                    elif self.canvas.type(obj) == "group":
+                        self.export_to_group(root,obj)
                 
                 tree = ET.ElementTree(root)
                 tree.write(file_path)
@@ -647,6 +649,31 @@ class DrawingEditor:
         end_y.text = str(y2)
         color_el = ET.SubElement(line, "color")
         color_el.text = color
+    def export_line_to_xml(self, parent, obj):
+    # If obj is a group, iterate over its children
+        if isinstance(obj, list):
+            for child_obj in obj:
+                self.export_line_to_xml(parent, child_obj)
+        else:
+            # Extract coordinates and color of the line
+            x1, y1, x2, y2 = self.canvas.coords(obj)
+            color = self.canvas.itemcget(obj, "fill")
+            
+            # Create XML elements for the line
+            line = ET.SubElement(parent, "line")
+            begin = ET.SubElement(line, "begin")
+            begin_x = ET.SubElement(begin, "x")
+            begin_x.text = str(x1)
+            begin_y = ET.SubElement(begin, "y")
+            begin_y.text = str(y1)
+            end = ET.SubElement(line, "end")
+            end_x = ET.SubElement(end, "x")
+            end_x.text = str(x2)
+            end_y = ET.SubElement(end, "y")
+            end_y.text = str(y2)
+            color_el = ET.SubElement(line, "color")
+            color_el.text = color
+
 
 def main():
     root = tk.Tk()
