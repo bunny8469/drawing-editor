@@ -5,6 +5,7 @@ import tkfontawesome as tkfa
 from tkinter.colorchooser import askcolor
 from tkinter import filedialog
 import xml.etree.ElementTree as ET
+from tkinter import messagebox
 
 WIDTH = 1280
 HEIGHT = 720
@@ -249,10 +250,25 @@ class DrawingEditor:
     def change_type(self, obj, type1):
     # Change the type of the selected object
         # self.rect_type[obj] = type1
-       if self.selected_type == "rectangle" and type1 == "rounded":
+        if self.selected_type == "rectangle" and type1 == "rounded":
+                # Get the coordinates of the rectangle
+                print(self.canvas.coords(obj))
+                coords= self.canvas.coords(obj)
+                fill_color = self.color_variable.get()
+                fill_color = self.rgb_to_hex(fill_color)
+                self.create_rectangle(*coords, 30,"rounded")
+                
+                self.delete_object(obj)
+            # self.canvas.delete(obj)
+            # self.canvas.update()
+        if self.selected_type=="rectangle" and type1=="square":
+                
+                print(self.canvas.coords(obj))
+                coords= self.canvas.coords(obj)
+                self.create_rectangle(coords[0],coords[1],coords[8],coords[9], 30,"square")
+                self.delete_object(obj)
             # Get the coordinates of the rectangle
-            print(self.canvas.coords(obj))
-            coords= self.canvas.coords(obj)
+            
             # self.canvas.delete(obj)
             # self.canvas.update()
 
@@ -539,10 +555,16 @@ class DrawingEditor:
                 # print(self.objects)
                 for obj in self.objects:
                     print(obj)
-                    coords = self.canvas.coords(obj)
-                    color = self.canvas.itemcget(obj, "fill")
+                    coords = self.canvas.coords(obj.tk_object)
+                    color = self.canvas.itemcget(obj.tk_object, "fill")
                     
                     file.write(f"{self.selected_type} {coords[0]} {coords[1]} {coords[2]} {coords[3]} {color} \n")
+    def on_closing(self):
+        if messagebox.askokcancel("Quit", "Do you want to quit? Any unsaved changes will be lost."):
+        # Display a button to save the file manually
+            self.save_drawing("1.txt")
+            # Destroy the root window after the file is saved or if the user chooses not to save
+            self.master.protocol("WM_DELETE_WINDOW", self.master.destroy)
     def clear_canvas(self):
     # Clear all objects on the canvas
         self.canvas.delete("all")
@@ -550,39 +572,43 @@ class DrawingEditor:
         self.objects = []
 
     def open_drawing(self, filename):
-        file_path = filedialog.askopenfilename(filetypes=[("Text files", "*.txt")])
-        if file_path:
-            self.clear_canvas()
-            with open(file_path, "r") as file:
-                for line in file:
-                    parts = line.strip().split()
-                    print(parts)
-                    if len(parts) < 5:
-                        continue  # Skip lines that don't have enough elements
-                    shape = parts[0]  # Get the shape type (e.g., line, rect)
-                    if shape == 'line' and len(parts) == 6:
-                        x1, y1, x2, y2 = map(float, parts[1:5])
-                        color=parts[5]
-                        self.set_current_object("line");
-                        self.draw_object(self.selected_type,x1, y1, x2, y2)
-                    elif shape == 'rect' and len(parts) == 7:
-                        x1, y1, x2, y2, color, style = map(float, parts[1:6])
-                        self.set_current_object("rectangle");
-                        self.draw_object(self.selected_type,x1, y1, x2, y2)
-                    else:
-                        print("Invalid line:", line.strip())
+        if messagebox.askokcancel("Confirmation", "Opening a new drawing will clear your current work. Continue?"):
+            file_path = filedialog.askopenfilename(filetypes=[("Text files", "*.txt")])
+            if file_path:
+                self.clear_canvas()
+                with open(file_path, "r") as file:
+                    for line in file:
+                        parts = line.strip().split()
+                        print(parts)
+                        if len(parts) < 5:
+                            continue  # Skip lines that don't have enough elements
+                        shape = parts[0]  # Get the shape type (e.g., line, rect)
+                        if shape == 'line' and len(parts) == 6:
+                            x1, y1, x2, y2 = map(float, parts[1:5])
+                            color=parts[5]
+                            self.set_current_object("line");
+                            self.draw_object(self.selected_type,x1, y1, x2, y2)
+                        elif shape == 'rect' and len(parts) == 7:
+                            x1, y1, x2, y2, color, style = map(float, parts[1:6])
+                            self.set_current_object("rectangle");
+                            self.draw_object(self.selected_type,x1, y1, x2, y2)
+                        else:
+                            print("Invalid line:", line.strip())
 
     def export_to_xml(self, filename):
-        root = ET.Element("objects")
-        for obj in self.canvas.find_all():
-            print(self.canvas.type(obj))
-            if self.canvas.type(obj) == "polygon":
-                self.export_rectangle_to_xml(root, obj)
-            elif self.canvas.type(obj) == "line":
-                self.export_line_to_xml(root, obj)
-        
-        tree = ET.ElementTree(root)
-        tree.write(filename + ".xml")
+        file_path = filedialog.asksaveasfilename(defaultextension=".xml", filetypes=[("XML files", "*.xml")])
+        if file_path:
+            with open(file_path, "w") as file:
+                root = ET.Element("objects")
+                for obj in self.canvas.find_all():
+                    if self.canvas.type(obj) == "rectangle":
+                        self.export_rectangle_to_xml(root, obj)
+                    elif self.canvas.type(obj) == "line":
+                        self.export_line_to_xml(root, obj)
+                
+                tree = ET.ElementTree(root)
+                tree.write(file_path)
+
 
     def export_rectangle_to_xml(self, parent, obj):
         coords = self.canvas.coords(obj)
@@ -625,6 +651,7 @@ class DrawingEditor:
 def main():
     root = tk.Tk()
     app = DrawingEditor(root)
+    root.protocol("WM_DELETE_WINDOW", app.on_closing)
     root.mainloop()
 
 if __name__ == "__main__":
