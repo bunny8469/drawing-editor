@@ -56,6 +56,7 @@ class DrawingObject:
     def __init__(self, start_x, start_y, end_x, end_y, fill_color):
         # self.tk_object = object
         self.fill_color = fill_color
+        self.type = "object"
 
     def convert_to_xml():
         pass
@@ -64,16 +65,19 @@ class Line(DrawingObject):
     def __init__(self, master, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.tk_object = master.create_line(*args, **kwargs)
+        self.type = "line"
 
 class Rectangle(DrawingObject):
     def __init__(self, master, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.tk_object = master.create_rectangle(*args, **kwargs)
         self.corner_style = "square"
+        self.type = "rectangle"
 
 class GroupComposite(DrawingObject):
     def __init__(self, master, *args, **kwargs):
         self.group = []
+        self.type = "group"
 
 class DrawingEditor:
     def __init__(self, master):
@@ -83,12 +87,13 @@ class DrawingEditor:
         self.canvas = tk.Canvas(self.master, width=WIDTH, height=HEIGHT, bg="white")
         self.canvas.pack(side=tk.RIGHT)
 
-        self.selected_object = None
+        self.selected_type = None
+        self.selected_objects = []
+        self.clipboard_object = None
         self.objects = []
 
         # Toolbar or menu creation
         self.create_toolbar()
-        self.clipboard_object = None # Set focus to the canvas
 
         self.start_x = None
         self.start_y = None
@@ -108,6 +113,19 @@ class DrawingEditor:
             rgb_color = tuple(int(color[i:i+2], 16) for i in (1, 3, 5))
             self.color_variable.set(rgb_color)
             # self.canvas.create_line(50, 100, 250, 100, fill=color, width=2)
+
+    def dehighlight_object(self):
+        for selected_object in self.selected_objects:
+            self.canvas.itemconfig(selected_object, width=1)
+
+    def highlight_object(self, object):
+        self.canvas.itemconfig(object, width=5)
+        if object not in self.selected_objects:
+            self.selected_objects.append(object)
+
+    # def get_closest_object(self, event):
+    #     closest_element = self.get_closest_element(event)[0]
+    #     pass
 
     def get_closest_element(self, event):
         closest_objects = self.canvas.find_overlapping(
@@ -141,16 +159,16 @@ class DrawingEditor:
         menu.add_command(label="Duplicate", command=lambda: self.duplicate_object(obj))
         menu.add_command(label="Delete", command=lambda: self.delete_object(obj))
         
-        # print(self.selected_object)
-        if (self.selected_object=="rectangle"):
+        # print(self.selected_type)
+        if (self.selected_type=="rectangle"):
             types_menu=tk.Menu(menu,tearoff=0)
             types=["rounded","square"]
             for type1 in types:
                 types_menu.add_command(label=type1,command=lambda t=type1:self.change_type(obj,t))
             menu.add_cascade(label="Type",menu=types_menu)
-        # if self.selected_object == "line":
+        # if self.selected_type == "line":
         #     self.rect_type[obj] = None  # None indicates it's not a rectangle
-        # elif self.selected_object == "rectangle":
+        # elif self.selected_type == "rectangle":
         #     # self.rect_type[obj] = "square"  
         menu.tk_popup(event.x_root, event.y_root)
 
@@ -161,7 +179,7 @@ class DrawingEditor:
     def change_type(self, obj, type1):
     # Change the type of the selected object
         # self.rect_type[obj] = type1
-       if self.selected_object == "rectangle" and type1 == "rounded":
+       if self.selected_type == "rectangle" and type1 == "rounded":
             # Get the coordinates of the rectangle
             print(self.canvas.coords(obj))
             coords= self.canvas.coords(obj)
@@ -169,7 +187,7 @@ class DrawingEditor:
             # self.canvas.update()
 
     def set_current_object(self, object_type):
-        self.selected_object = object_type
+        self.selected_type = object_type
 
     def duplicate_object(self, obj):
         # Get the type and properties of the object
@@ -247,8 +265,7 @@ class DrawingEditor:
         if self.current_object and self.select:
             self.canvas.delete(self.current_object)
         self.current_object = None
-
-        
+        self.dehighlight_object()
 
     def on_canvas_release(self, event):
         # Handle canvas release event
@@ -257,17 +274,21 @@ class DrawingEditor:
             self.end_y=event.y
             if self.current_object:
                 self.canvas.delete(self.current_object)  # Delete the temporary line
-                self.current_object = self.draw_object(self.selected_object, self.start_x, self.start_y, event.x, event.y, realObject=True)
-                self.select = (self.selected_object == None)
+                self.current_object = self.draw_object(self.selected_type, self.start_x, self.start_y, event.x, event.y, realObject=True)
+                self.select = (self.selected_type == None)
             self.drawing = False
-            print(self.objects)
+        
+        if not self.selected_type:
+            if event.x == self.start_x and event.y == self.start_y:
+                drawing_object = self.get_closest_element(event)
+                self.highlight_object(drawing_object)
 
     def on_mouse_drag(self, event):
         # Handle mouse drag event
         if self.drawing:
             if self.current_object and self.select:
                 self.canvas.delete(self.current_object)  # Delete previous temporary line
-            self.current_object = self.draw_object(self.selected_object, self.start_x, self.start_y, event.x, event.y, fill="black")
+            self.current_object = self.draw_object(self.selected_type, self.start_x, self.start_y, event.x, event.y, fill="black")
             self.select = True
     
     def create_rectangle(self, x1, y1, x2, y2, radius,type_rect, **kwargs):
@@ -349,43 +370,40 @@ class DrawingEditor:
     def copy_object(self, object):
         # Copy object on canvas
         pass
+
+    def map_object(self, object):
+        for obj in self.objects:
+            if obj.tk_object == object:
+                return obj
+        return None
+
     def copy_object_shortcut(self,event):
-        # print("copy")
     # Copy the selected object to clipboard when Ctrl+C is pressed
         print("copy")
-        if self.selected_object:
-            self.clipboard_object = self.selected_object
-            self.clipboard_value=[self.start_x,self.start_y,self.end_x,self.end_y]
-            print(self.clipboard_object)
+        self.clipboard_objects = []
+        for selected_object in self.selected_objects:
+            self.clipboard_objects.append(self.map_object(selected_object))
 
     def paste_object_shortcut(self, event):
-    # Paste the object from clipboard when Ctrl+P is pressed
-        print("pa")
-        print(self.clipboard_object)
-        if self.clipboard_object:
+        # Paste the object from clipboard when Ctrl+P is pressed
+        print("paste")
+        self.dehighlight_object()
+        for clipboard_object in self.clipboard_objects:
             # Get the coordinates of the cursor
             x = self.canvas.canvasx(event.x)
             y = self.canvas.canvasy(event.y)
-            print(x,y)
-        # Get the fill color of the clipboard object
+            print(x, y)
+            
+            # Get the fill color of the clipboard object
             fill_color = self.color_variable.get();
             fill_color=self.rgb_to_hex(fill_color)
             print(fill_color)
             
-            if self.clipboard_object == "line":
-                print("paste")  
-                print(self.clipboard_object)
-                coords = self.clipboard_value
-                # print(coords)
-                width=coords[2]-coords[0]
-                height=coords[3]-coords[1]
-                new_object=self.canvas.create_line(x, y, x + width, y+height, fill=fill_color)
-            elif self.clipboard_object == "rectangle":
-                coords = self.clipboard_value
-                width=coords[2]-coords[0]
-                height=coords[3]-coords[1]
-                new_object = self.create_rectangle(x, y, x + width, y + height,10,"square")
-
+            coords = self.canvas.coords(clipboard_object.tk_object)
+            new_coords = [x, y, x + (coords[2] - coords[0]), y + coords[3] - coords[1]]
+            new_object = self.draw_object(clipboard_object.type, *new_coords, fill=fill_color)
+            
+            self.highlight_object(new_object)
 
     def move_object(self, object, new_x, new_y):
         # Move object to new coordinates
@@ -413,7 +431,7 @@ class DrawingEditor:
                     coords = self.canvas.coords(obj)
                     color = self.canvas.itemcget(obj, "fill")
                     
-                    file.write(f"{self.selected_object} {coords[0]} {coords[1]} {coords[2]} {coords[3]} {color} \n")
+                    file.write(f"{self.selected_type} {coords[0]} {coords[1]} {coords[2]} {coords[3]} {color} \n")
     def clear_canvas(self):
     # Clear all objects on the canvas
         self.canvas.delete("all")
@@ -435,11 +453,11 @@ class DrawingEditor:
                         x1, y1, x2, y2 = map(float, parts[1:5])
                         color=parts[5]
                         self.set_current_object("line");
-                        self.draw_object(self.selected_object,x1, y1, x2, y2)
+                        self.draw_object(self.selected_type,x1, y1, x2, y2)
                     elif shape == 'rect' and len(parts) == 7:
                         x1, y1, x2, y2, color, style = map(float, parts[1:6])
                         self.set_current_object("rectangle");
-                        self.draw_object(self.selected_object,x1, y1, x2, y2)
+                        self.draw_object(self.selected_type,x1, y1, x2, y2)
                     else:
                         print("Invalid line:", line.strip())
 
