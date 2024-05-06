@@ -6,11 +6,6 @@ from tkinter.colorchooser import askcolor
 from tkinter import filedialog
 import xml.etree.ElementTree as ET
 
-# tfa_init()
-# tkfontawesome.load_font(fontawesome_file_path=None)
-# tkfa._install_icon_font()
-
-
 WIDTH = 1280
 HEIGHT = 720
 
@@ -95,7 +90,6 @@ class DrawingEditor:
         self.create_toolbar()
         self.clipboard_object = None # Set focus to the canvas
 
-        # self.canvas.bind("<ButtonRelease-1>", self.save_drawing)
         self.start_x = None
         self.start_y = None
         self.drawing = False
@@ -115,44 +109,50 @@ class DrawingEditor:
             self.color_variable.set(rgb_color)
             # self.canvas.create_line(50, 100, 250, 100, fill=color, width=2)
 
-    def on_canvas_right_click(self, event):
+    def get_closest_element(self, event):
         closest_objects = self.canvas.find_overlapping(
             event.x - self.proximity_threshold, event.y - self.proximity_threshold,
             event.x + self.proximity_threshold, event.y + self.proximity_threshold
         )
-        # obj = self.canvas.find_closest(event.x, event.y)
-        if closest_objects:
-            obj = closest_objects[0]  # Extracting the object ID from the tuple
-            
 
-            # Create a context menu for editing object properties
-            menu = tk.Menu(self.master, tearoff=0)
+        if closest_objects: 
+            return closest_objects[0]
+        return None
+    
+    def on_canvas_right_click(self, event):
+        
+        obj = self.get_closest_element(event)
+        if not obj:
+            return
+        
+        # Create a context menu for editing object properties
+        menu = tk.Menu(self.master, tearoff=0)
 
-            # Color submenu
-            color_menu = tk.Menu(menu, tearoff=0)
-            colors = ["black", "red", "blue", "green", "yellow"]  # Add more colors as needed
-            for color in colors:
-                color_menu.add_command(label=color, command=lambda c=color: self.change_object_color(obj, c))
-            menu.add_cascade(label="Color", menu=color_menu)
+        # Color submenu
+        color_menu = tk.Menu(menu, tearoff=0)
+        colors = ["black", "red", "blue", "green", "yellow"]  # Add more colors as needed
+        for color in colors:
+            color_menu.add_command(label=color, command=lambda c=color: self.change_object_color(obj, c))
+        menu.add_cascade(label="Color", menu=color_menu)
 
-            # Other options
-            menu.add_command(label="Select", command=lambda: self.select_object(obj))
-            # menu.add_command(label="Copy", command=lambda: self.copy_object(obj))
-            menu.add_command(label="Duplicate", command=lambda: self.duplicate_object(obj))
-            menu.add_command(label="Delete", command=lambda: self.delete_object(obj))
-            
-            # print(self.selected_object)
-            if (self.selected_object=="rectangle"):
-                types_menu=tk.Menu(menu,tearoff=0)
-                types=["rounded","square"]
-                for type1 in types:
-                    types_menu.add_command(label=type1,command=lambda t=type1:self.change_type(obj,t))
-                menu.add_cascade(label="Type",menu=types_menu)
-            # if self.selected_object == "line":
-            #     self.rect_type[obj] = None  # None indicates it's not a rectangle
-            # elif self.selected_object == "rectangle":
-            #     # self.rect_type[obj] = "square"  
-            menu.tk_popup(event.x_root, event.y_root)
+        # Other options
+        menu.add_command(label="Select", command=lambda: self.select_object(obj))
+        # menu.add_command(label="Copy", command=lambda: self.copy_object(obj))
+        menu.add_command(label="Duplicate", command=lambda: self.duplicate_object(obj))
+        menu.add_command(label="Delete", command=lambda: self.delete_object(obj))
+        
+        # print(self.selected_object)
+        if (self.selected_object=="rectangle"):
+            types_menu=tk.Menu(menu,tearoff=0)
+            types=["rounded","square"]
+            for type1 in types:
+                types_menu.add_command(label=type1,command=lambda t=type1:self.change_type(obj,t))
+            menu.add_cascade(label="Type",menu=types_menu)
+        # if self.selected_object == "line":
+        #     self.rect_type[obj] = None  # None indicates it's not a rectangle
+        # elif self.selected_object == "rectangle":
+        #     # self.rect_type[obj] = "square"  
+        menu.tk_popup(event.x_root, event.y_root)
 
     def change_object_color(self, obj, color):
         # Change the color of the selected object
@@ -247,6 +247,8 @@ class DrawingEditor:
         if self.current_object and self.select:
             self.canvas.delete(self.current_object)
         self.current_object = None
+
+        
 
     def on_canvas_release(self, event):
         # Handle canvas release event
@@ -355,6 +357,7 @@ class DrawingEditor:
             self.clipboard_object = self.selected_object
             self.clipboard_value=[self.start_x,self.start_y,self.end_x,self.end_y]
             print(self.clipboard_object)
+
     def paste_object_shortcut(self, event):
     # Paste the object from clipboard when Ctrl+P is pressed
         print("pa")
