@@ -3,7 +3,8 @@ from tkinter import font
 # from tkfontawesome import tfa_init
 import tkfontawesome as tkfa
 from tkinter.colorchooser import askcolor
-
+from tkinter import filedialog
+import xml.etree.ElementTree as ET
 
 # tfa_init()
 # tkfontawesome.load_font(fontawesome_file_path=None)
@@ -100,6 +101,15 @@ class DrawingEditor:
         self.rect_button = Button(self.left_panel, title="Draw Rectangle",icon="\uf0c8", command=lambda: self.set_current_object("rectangle"), **button_style)
         self.rect_button.config(width=20)
         self.rect_button.pack(fill=tk.X)
+        self.rect_button = Button(self.left_panel, title="Open File", command=lambda: self.open_drawing("1.txt"), **button_style)
+        self.rect_button.config(width=20)
+        self.rect_button.pack(fill=tk.X)
+        self.rect_button = Button(self.left_panel, title="Save File", command=lambda: self.save_drawing("1.txt"), **button_style)
+        self.rect_button.config(width=20)
+        self.rect_button.pack(fill=tk.X)
+        self.rect_button = Button(self.left_panel, title="XML", command=lambda: self.export_to_xml("4"), **button_style)
+        self.rect_button.config(width=20)
+        self.rect_button.pack(fill=tk.X)
         
         # self.rect_button = Button(self.left_panel, title="Select", command=lambda: self.set_current_object(None), **button_style)
         # self.rect_button.config(width=20)
@@ -112,19 +122,22 @@ class DrawingEditor:
         self.create_toolbar()
 
         # Event bindings
+        self.canvas.bind("<Control-c>", self.copy_object_shortcut)
+        self.canvas.bind("<Control-v>", self.paste_object_shortcut)
         self.canvas.bind("<Button-1>", self.on_canvas_click)
-        self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_canvas_release)
+        self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
         self.canvas.bind("<Button-3>",self.on_canvas_right_click)
-
         self.start_x = None
         self.start_y = None
         self.drawing = False
         self.current_object = None
+        # self.rect_type=None
+        # self.rect_type=tk.StringVar(self.master)
+        self.rect_type=[]
         self.select = True
     def pick_color(self):
         color = askcolor(title="Choose line color")[1]  
-        # self.color_variable=color
         if color:
             rgb_color = tuple(int(color[i:i+2], 16) for i in (1, 3, 5))
             self.color_variable.set(rgb_color)
@@ -132,7 +145,9 @@ class DrawingEditor:
     def on_canvas_right_click(self, event):
         obj = self.canvas.find_closest(event.x, event.y)
         if obj:
+            obj1=obj
             obj = obj[0]  # Extracting the object ID from the tuple
+            
 
             # Create a context menu for editing object properties
             menu = tk.Menu(self.master, tearoff=0)
@@ -148,12 +163,33 @@ class DrawingEditor:
             menu.add_command(label="Select", command=lambda: self.select_object(obj))
             menu.add_command(label="Copy", command=lambda: self.copy_object(obj))
             menu.add_command(label="Delete", command=lambda: self.delete_object(obj))
-
-            # Display the context menu at the right-click position
+            
+            # print(self.selected_object)
+            if (self.selected_object=="rectangle"):
+                # print("rishabh")
+                types_menu=tk.Menu(menu,tearoff=0)
+                types=["rounded","square"]
+                for type1 in types:
+                    types_menu.add_command(label=type1,command=lambda t=type1:self.change_type(obj,t))
+                menu.add_cascade(label="Type",menu=types_menu)
+            # if self.selected_object == "line":
+            #     self.rect_type[obj] = None  # None indicates it's not a rectangle
+            # elif self.selected_object == "rectangle":
+            #     # self.rect_type[obj] = "square"  
             menu.tk_popup(event.x_root, event.y_root)
     def change_object_color(self, obj, color):
         # Change the color of the selected object
-        self.canvas.itemconfig(obj, fill=color)
+        self.canvas.itemconfig(obj,fill=color)
+        pass
+    def change_type(self, obj, type1):
+    # Change the type of the selected object
+        # self.rect_type[obj] = type1
+       if self.selected_object == "rectangle" and type1 == "rounded":
+            # Get the coordinates of the rectangle
+            print(self.canvas.coords(obj))
+            coords= self.canvas.coords(obj)
+            # self.canvas.delete(obj)
+            # self.canvas.update()
 
     def set_current_object(self, object_type):
         self.selected_object = object_type
@@ -174,11 +210,12 @@ class DrawingEditor:
     def on_canvas_release(self, event):
         # Handle canvas release event
         if self.drawing:
+            self.end_x=event.x
+            self.end_y=event.y
+            self.draw_object(self.selected_object, self.start_x, self.start_y, event.x, event.y)
+            self.drawing = False
             if self.current_object:
                 self.canvas.delete(self.current_object)  # Delete the temporary line
-                self.current_object = self.draw_object(self.selected_object, self.start_x, self.start_y, event.x, event.y)
-                self.select = (self.selected_object == None)
-            self.drawing = False
 
     def on_mouse_drag(self, event):
         # Handle mouse drag event
@@ -195,38 +232,61 @@ class DrawingEditor:
     #         # Update the end coordinates of the current object
     #         self.canvas.coords(self.current_object, self.start_x, self.start_y, event.x, event.y)
 
-    def create_rounded_rectangle(self, x1, y1, x2, y2, radius, **kwargs):
-    # Create a rectangle without rounded corners
-        rectangle = self.canvas.create_rectangle(x1 + radius, y1, x2 - radius, y2, **kwargs)
+    
+    def create_rectangle(self, x1, y1, x2, y2, radius,type_rect, **kwargs):
+        points = [x1 + radius, y1,
+                x1 + radius, y1,
+                x2 - radius, y1,
+                x2 - radius, y1,
+                x2, y1,
+                x2, y1 + radius,
+                x2, y1 + radius,
+                x2, y2 - radius,
+                x2, y2 - radius,
+                x2, y2,
+                x2 - radius, y2,
+                x2 - radius, y2,
+                x1 + radius, y2,
+                x1 + radius, y2,
+                x1, y2,
+                x1, y2 - radius,
+                x1, y2 - radius,
+                x1, y1 + radius,
+                x1, y1 + radius,
+                x1, y1]
+        print("sa")
+        # print(self.rect_type)
+        print(type_rect)
+        if (type_rect=="rounded"):
+            # print("rounded")
+            self.canvas.create_polygon(points,**kwargs,smooth=True)
+        else:
+            print("square")
+            self.canvas.create_polygon(points,**kwargs)
 
-        # Draw semi-circles to create rounded corners
-        self.canvas.create_arc(x1, y1, x1 + 2 * radius, y1 + 2 * radius, start=90, extent=90, style=tk.ARC, outline="", **kwargs)
-        self.canvas.create_arc(x2 - 2 * radius, y1, x2, y1 + 2 * radius, start=0, extent=90, style=tk.ARC, outline="", **kwargs)
-        self.canvas.create_arc(x2 - 2 * radius, y2 - 2 * radius, x2, y2, start=270, extent=90, style=tk.ARC, outline="", **kwargs)
-        self.canvas.create_arc(x1, y2 - 2 * radius, x1 + 2 * radius, y2, start=180, extent=90, style=tk.ARC, outline="", **kwargs)
-
-        # Draw lines to connect the semi-circles
-        self.canvas.create_line(x1 + radius, y1, x2 - radius, y1, **kwargs)
-        self.canvas.create_line(x2, y1 + radius, x2, y2 - radius, **kwargs)
-        self.canvas.create_line(x1 + radius, y2, x2 - radius, y2, **kwargs)
-        self.canvas.create_line(x1, y1 + radius, x1, y2 - radius, **kwargs)
-
-        return rectangle
 
     def draw_object(self, object_type, start_x, start_y, end_x, end_y, **kwargs):
         # Draw object on canvas based on type and coordinates
         color = self.color_variable.get()
-        # print(color);
         hex_color = self.rgb_to_hex(color)
-        # print(hex_color)
         kwargs.pop('fill', None)
+        # type_rect=self.canvas.itemcget("tag")
+        # tags=self.canvas.gettags()
+        # Store reference to drawn object
+        drawn_object = None
         if object_type == "line":
-            return self.canvas.create_line(start_x, start_y, end_x, end_y, fill=hex_color, **kwargs)
+            drawn_object = self.canvas.create_line(start_x, start_y, end_x, end_y, fill=hex_color, **kwargs)
+            # self.rect_type.append(None)
         elif object_type == "rectangle":
-            return self.create_rounded_rectangle(start_x,start_y,end_x,end_y,1);
-        else:
-            kwargs["fill"] = None
-            return self.canvas.create_rectangle(start_x, start_y, end_x, end_y, dash=(2, 4), fill=hex_color, **kwargs)
+            drawn_object = self.create_rectangle(start_x, start_y, end_x, end_y,10,"square",**kwargs)
+            # self.rect_type.append("square") 
+        else: 
+            drawn_object = self.canvas.create_rectangle(start_x, start_y, end_x, end_y, dash=(2, 4), fill=hex_color, **kwargs)
+            # self.rect_type.append(None)
+
+        self.objects.append(drawn_object)  # Add the drawn object to the list
+        return drawn_object
+
 
     def rgb_to_hex(self, rgb_color):
         rgb_values = tuple(map(int, rgb_color.strip('()').split(',')))
@@ -245,11 +305,41 @@ class DrawingEditor:
 
     def delete_object(self, object):
         # Delete object from canvas
+        self.canvas.delete(object)
         pass
 
     def copy_object(self, object):
         # Copy object on canvas
         pass
+    def copy_object_shortcut(self):
+        # print("copy")
+    # Copy the selected object to clipboard when Ctrl+C is pressed
+        print("copy")
+        if self.selected_object:
+            self.clipboard_object = self.selected_object
+            print(self.clipboard_object)
+    def paste_object_shortcut(self, event):
+    # Paste the object from clipboard when Ctrl+P is pressed
+        if self.clipboard_object:
+            # Get the coordinates of the cursor
+            x = self.canvas.canvasx(event.x)
+            y = self.canvas.canvasy(event.y)
+        # Get the fill color of the clipboard object
+            fill_color = self.canvas.itemcget(self.clipboard_object, "fill")
+            
+            if self.canvas.type(self.clipboard_object) == "line":
+                print("paste")  
+                coords = self.canvas.coords(self.clipboard_object)
+                print(coords)
+                width=coords[2]-coords[0]
+                height=coords[3]-coords[1]
+                new_object=self.canvas.create_line(x, y, x + width, y+height, fill=fill_color)
+            elif self.canvas.type(self.clipboard_object) == "rectangle":
+                coords = self.canvas.coords(self.clipboard_object)
+                width=coords[2]-coords[0]
+                height=coords[3]-coords[1]
+                new_object = self.canvas.create_rectangle(x, y, x + width, y + height, fill=fill_color, outline=fill_color)
+
 
     def move_object(self, object, new_x, new_y):
         # Move object to new coordinates
@@ -268,20 +358,91 @@ class DrawingEditor:
         pass
 
     def save_drawing(self, filename):
-        # Save drawing to file
-        pass
+        file_path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text files", "*.txt")])
+        if file_path:
+            with open(file_path, "w") as file:
+                for obj in self.objects:
+                    # coords = self.canvas.coords(obj)
+                    color = self.canvas.itemcget(obj, "fill")
+                file.write(f"{self.selected_object} {self.start_x} {self.start_y} {self.end_x} {self.end_y} {color} \n")
 
     def open_drawing(self, filename):
-        # Open drawing from file
-        pass
+        file_path = filedialog.askopenfilename(filetypes=[("Text files", "*.txt")])
+        if file_path:
+            with open(file_path, "r") as file:
+                for line in file:
+                    parts = line.strip().split()
+                    print(parts)
+                    if len(parts) < 5:
+                        continue  # Skip lines that don't have enough elements
+                    shape = parts[0]  # Get the shape type (e.g., line, rect)
+                    if shape == 'line' and len(parts) == 6:
+                        x1, y1, x2, y2 = map(int, parts[1:5])
+                        color=parts[5]
+                        self.set_current_object("line");
+                        self.draw_object(self.selected_object,x1, y1, x2, y2)
+                    elif shape == 'rect' and len(parts) == 7:
+                        x1, y1, x2, y2, color, style = map(int, parts[1:6])
+                        self.set_current_object("rectangle");
+                        self.draw_object(self.selected_object,x1, y1, x2, y2)
+                    else:
+                        print("Invalid line:", line.strip())
 
     def export_to_xml(self, filename):
-        # Export drawing to XML format
-        pass
+        root = ET.Element("objects")
+        for obj in self.canvas.find_all():
+            print(self.canvas.type(obj))
+            if self.canvas.type(obj) == "polygon":
+                self.export_rectangle_to_xml(root, obj)
+            elif self.canvas.type(obj) == "line":
+                self.export_line_to_xml(root, obj)
+        
+        tree = ET.ElementTree(root)
+        tree.write(filename + ".xml")
+
+    def export_rectangle_to_xml(self, parent, obj):
+        coords = self.canvas.coords(obj)
+        upper_left_x = min(coords[0], coords[4])
+        upper_left_y = min(coords[1], coords[3])
+        lower_right_x = max(coords[0], coords[4])
+        lower_right_y = max(coords[1], coords[3])
+        color = self.canvas.itemcget(obj, "fill")
+        rectangle = ET.SubElement(parent, "rectangle")
+        upper_left = ET.SubElement(rectangle, "upper-left")
+        upper_left_x_el = ET.SubElement(upper_left, "x")
+        upper_left_x_el.text = str(upper_left_x)
+        upper_left_y_el = ET.SubElement(upper_left, "y")
+        upper_left_y_el.text = str(upper_left_y)
+        lower_right = ET.SubElement(rectangle, "lower-right")
+        lower_right_x_el = ET.SubElement(lower_right, "x")
+        lower_right_x_el.text = str(lower_right_x)
+        lower_right_y_el = ET.SubElement(lower_right, "y")
+        lower_right_y_el.text = str(lower_right_y)
+        color_el = ET.SubElement(rectangle, "color")
+        color_el.text = color
+
+    def export_line_to_xml(self, parent, obj):
+        x1, y1, x2, y2 = self.canvas.coords(obj)
+        color = self.canvas.itemcget(obj, "fill")
+        line = ET.SubElement(parent, "line")
+        begin = ET.SubElement(line, "begin")
+        begin_x = ET.SubElement(begin, "x")
+        begin_x.text = str(x1)
+        begin_y = ET.SubElement(begin, "y")
+        begin_y.text = str(y1)
+        end = ET.SubElement(line, "end")
+        end_x = ET.SubElement(end, "x")
+        end_x.text = str(x2)
+        end_y = ET.SubElement(end, "y")
+        end_y.text = str(y2)
+        color_el = ET.SubElement(line, "color")
+        color_el.text = color
+
+
+
 
 def main():
     root = tk.Tk()
-    # font.Font(root, root.cget("font")).actual()
     app = DrawingEditor(root)
     root.mainloop()
 
