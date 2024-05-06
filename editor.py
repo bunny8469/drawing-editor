@@ -117,6 +117,7 @@ class DrawingEditor:
     def dehighlight_object(self):
         for selected_object in self.selected_objects:
             self.canvas.itemconfig(selected_object, width=1)
+        self.selected_objects = []
 
     def highlight_object(self, object):
         self.canvas.itemconfig(object, width=5)
@@ -195,7 +196,7 @@ class DrawingEditor:
         coords = self.canvas.coords(obj)
         color = self.canvas.itemcget(obj, "fill")
         print(coords)
-        offset = 20  
+        offset = 20
         translated_coords = [coord + offset for coord in coords]
         if obj_type == "line":
             print("hi")
@@ -265,7 +266,9 @@ class DrawingEditor:
         if self.current_object and self.select:
             self.canvas.delete(self.current_object)
         self.current_object = None
-        self.dehighlight_object()
+        
+        if not (event.state & 0x4):
+            self.dehighlight_object()
 
     def on_canvas_release(self, event):
         # Handle canvas release event
@@ -338,7 +341,7 @@ class DrawingEditor:
             return line_object.tk_object
         
         elif object_type == "rectangle":
-            kwargs['outline'] = ""
+            kwargs['fill'] = None
             rect_object = Rectangle(self.canvas, start_x, start_y, end_x, end_y, kwargs)
             if realObject:
                 self.objects.append(rect_object)
@@ -367,10 +370,6 @@ class DrawingEditor:
         self.canvas.delete(object)
         pass
 
-    def copy_object(self, object):
-        # Copy object on canvas
-        pass
-
     def map_object(self, object):
         for obj in self.objects:
             if obj.tk_object == object:
@@ -379,25 +378,21 @@ class DrawingEditor:
 
     def copy_object_shortcut(self,event):
     # Copy the selected object to clipboard when Ctrl+C is pressed
-        print("copy")
         self.clipboard_objects = []
         for selected_object in self.selected_objects:
             self.clipboard_objects.append(self.map_object(selected_object))
 
     def paste_object_shortcut(self, event):
         # Paste the object from clipboard when Ctrl+P is pressed
-        print("paste")
         self.dehighlight_object()
         for clipboard_object in self.clipboard_objects:
             # Get the coordinates of the cursor
             x = self.canvas.canvasx(event.x)
             y = self.canvas.canvasy(event.y)
-            print(x, y)
             
             # Get the fill color of the clipboard object
             fill_color = self.color_variable.get();
-            fill_color=self.rgb_to_hex(fill_color)
-            print(fill_color)
+            fill_color = self.rgb_to_hex(fill_color)
             
             coords = self.canvas.coords(clipboard_object.tk_object)
             new_coords = [x, y, x + (coords[2] - coords[0]), y + coords[3] - coords[1]]
