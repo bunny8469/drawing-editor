@@ -536,7 +536,7 @@ class DrawingEditor:
         file_path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text files", "*.txt")])
         if file_path:
             with open(file_path, "w") as file:
-                print(self.objects)
+                # print(self.objects)
                 for obj in self.objects:
                     print(obj)
                     coords = self.canvas.coords(obj)
