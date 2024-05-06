@@ -120,6 +120,7 @@ class DrawingEditor:
 
         # Toolbar or menu creation
         self.create_toolbar()
+        self.clipboard_object = None # Set focus to the canvas
 
         # Event bindings
         self.canvas.bind("<Control-c>", self.copy_object_shortcut)
@@ -128,6 +129,8 @@ class DrawingEditor:
         self.canvas.bind("<ButtonRelease-1>", self.on_canvas_release)
         self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
         self.canvas.bind("<Button-3>",self.on_canvas_right_click)
+        self.canvas.focus_set()
+        # self.canvas.bind("<ButtonRelease-1>", self.save_drawing)
         self.start_x = None
         self.start_y = None
         self.drawing = False
@@ -161,7 +164,8 @@ class DrawingEditor:
 
             # Other options
             menu.add_command(label="Select", command=lambda: self.select_object(obj))
-            menu.add_command(label="Copy", command=lambda: self.copy_object(obj))
+            # menu.add_command(label="Copy", command=lambda: self.copy_object(obj))
+            menu.add_command(label="Duplicate", command=lambda: self.duplicate_object(obj))
             menu.add_command(label="Delete", command=lambda: self.delete_object(obj))
             
             # print(self.selected_object)
@@ -193,6 +197,21 @@ class DrawingEditor:
 
     def set_current_object(self, object_type):
         self.selected_object = object_type
+    def duplicate_object(self, obj):
+        # Get the type and properties of the object
+        obj_type = self.canvas.type(obj)
+        coords = self.canvas.coords(obj)
+        color = self.canvas.itemcget(obj, "fill")
+        print(coords)
+        offset = 20  
+        translated_coords = [coord + offset for coord in coords]
+        if obj_type == "line":
+            print("hi")
+            new_obj = self.canvas.create_line(translated_coords, fill=color)
+        elif obj_type == "rectangle":
+            new_obj = self.canvas.create_rectangle(translated_coords, fill=color)
+        self.objects.append(new_obj)
+
 
     def create_toolbar(self):
         # Create toolbar buttons or menu here
@@ -222,7 +241,7 @@ class DrawingEditor:
         if self.drawing:
             if self.current_object and self.select:
                 self.canvas.delete(self.current_object)  # Delete previous temporary line
-            self.current_object = self.draw_object(self.selected_object, self.start_x, self.start_y, event.x, event.y, fill="black")
+            # self.current_object = self.draw_object(self.selected_object, self.start_x, self.start_y, event.x, event.y, fill="black")
     # def on_mouse_drag(self, event):
     #     if self.current_object is None:
     #         self.start_x = event.x
@@ -262,6 +281,7 @@ class DrawingEditor:
             self.canvas.create_polygon(points,**kwargs,smooth=True)
         else:
             print("square")
+            print(points)
             self.canvas.create_polygon(points,**kwargs)
 
 
@@ -284,7 +304,7 @@ class DrawingEditor:
             drawn_object = self.canvas.create_rectangle(start_x, start_y, end_x, end_y, dash=(2, 4), fill=hex_color, **kwargs)
             # self.rect_type.append(None)
 
-        self.objects.append(drawn_object)  # Add the drawn object to the list
+        self.objects.append(drawn_object)
         return drawn_object
 
 
@@ -311,34 +331,41 @@ class DrawingEditor:
     def copy_object(self, object):
         # Copy object on canvas
         pass
-    def copy_object_shortcut(self):
+    def copy_object_shortcut(self,event):
         # print("copy")
     # Copy the selected object to clipboard when Ctrl+C is pressed
         print("copy")
         if self.selected_object:
             self.clipboard_object = self.selected_object
+            self.clipboard_value=[self.start_x,self.start_y,self.end_x,self.end_y]
             print(self.clipboard_object)
     def paste_object_shortcut(self, event):
     # Paste the object from clipboard when Ctrl+P is pressed
+        print("pa")
+        print(self.clipboard_object)
         if self.clipboard_object:
             # Get the coordinates of the cursor
             x = self.canvas.canvasx(event.x)
             y = self.canvas.canvasy(event.y)
+            print(x,y)
         # Get the fill color of the clipboard object
-            fill_color = self.canvas.itemcget(self.clipboard_object, "fill")
+            fill_color = self.color_variable.get();
+            fill_color=self.rgb_to_hex(fill_color)
+            print(fill_color)
             
-            if self.canvas.type(self.clipboard_object) == "line":
+            if self.clipboard_object == "line":
                 print("paste")  
-                coords = self.canvas.coords(self.clipboard_object)
-                print(coords)
+                print(self.clipboard_object)
+                coords = self.clipboard_value
+                # print(coords)
                 width=coords[2]-coords[0]
                 height=coords[3]-coords[1]
                 new_object=self.canvas.create_line(x, y, x + width, y+height, fill=fill_color)
-            elif self.canvas.type(self.clipboard_object) == "rectangle":
-                coords = self.canvas.coords(self.clipboard_object)
+            elif self.clipboard_object == "rectangle":
+                coords = self.clipboard_value
                 width=coords[2]-coords[0]
                 height=coords[3]-coords[1]
-                new_object = self.canvas.create_rectangle(x, y, x + width, y + height, fill=fill_color, outline=fill_color)
+                new_object = self.create_rectangle(x, y, x + width, y + height,10,"square")
 
 
     def move_object(self, object, new_x, new_y):
@@ -361,14 +388,22 @@ class DrawingEditor:
         file_path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text files", "*.txt")])
         if file_path:
             with open(file_path, "w") as file:
+                print(self.objects)
                 for obj in self.objects:
-                    # coords = self.canvas.coords(obj)
+                    print(obj)
+                    coords = self.canvas.coords(obj)
                     color = self.canvas.itemcget(obj, "fill")
-                file.write(f"{self.selected_object} {self.start_x} {self.start_y} {self.end_x} {self.end_y} {color} \n")
-
+                    
+                    file.write(f"{self.selected_object} {coords[0]} {coords[1]} {coords[2]} {coords[3]} {color} \n")
+    def clear_canvas(self):
+    # Clear all objects on the canvas
+        self.canvas.delete("all")
+        # Clear the list of stored objects
+        self.objects = []
     def open_drawing(self, filename):
         file_path = filedialog.askopenfilename(filetypes=[("Text files", "*.txt")])
         if file_path:
+            self.clear_canvas()
             with open(file_path, "r") as file:
                 for line in file:
                     parts = line.strip().split()
@@ -377,12 +412,12 @@ class DrawingEditor:
                         continue  # Skip lines that don't have enough elements
                     shape = parts[0]  # Get the shape type (e.g., line, rect)
                     if shape == 'line' and len(parts) == 6:
-                        x1, y1, x2, y2 = map(int, parts[1:5])
+                        x1, y1, x2, y2 = map(float, parts[1:5])
                         color=parts[5]
                         self.set_current_object("line");
                         self.draw_object(self.selected_object,x1, y1, x2, y2)
                     elif shape == 'rect' and len(parts) == 7:
-                        x1, y1, x2, y2, color, style = map(int, parts[1:6])
+                        x1, y1, x2, y2, color, style = map(float, parts[1:6])
                         self.set_current_object("rectangle");
                         self.draw_object(self.selected_object,x1, y1, x2, y2)
                     else:
