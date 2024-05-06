@@ -75,9 +75,36 @@ class Rectangle(DrawingObject):
         self.type = "rectangle"
 
 class GroupComposite(DrawingObject):
-    def __init__(self, master, *args, **kwargs):
-        self.group = []
+    def __init__(self, master, canvas, *args, **kwargs):
+        self.objects = []
         self.type = "group"
+        self.canvas = canvas
+
+    def add_object(self, obj):
+        self.objects.append(obj)
+
+    def remove_object(self, obj):
+        if obj in self.objects:
+            self.objects.remove(obj)
+
+    def get_bounding_box(self):
+        # Calculate the bounding box of the group based on the objects it contains
+        if not self.objects:
+            return None
+        
+        coordinates = []
+        for i in range(4):
+            for obj in self.objects:
+                coordinates.append((self.canvas.coords(obj)[0], self.canvas.coords(obj)[1]))
+                coordinates.append((self.canvas.coords(obj)[2], self.canvas.coords(obj)[3]))
+
+        min_x = min(coordinates, key=lambda x: x[0])[0]
+        min_y = min(coordinates, key=lambda x: x[1])[1]
+        max_x = max(coordinates, key=lambda x: x[0])[0]
+        max_y = max(coordinates, key=lambda x: x[1])[1]
+
+
+        return min_x, min_y, max_x, max_y
 
 class DrawingEditor:
     def __init__(self, master):
@@ -91,6 +118,7 @@ class DrawingEditor:
         self.selected_objects = []
         self.clipboard_objects = []
         self.objects = []
+        self.groups = []
 
         # Toolbar or menu creation
         self.create_toolbar()
@@ -105,6 +133,7 @@ class DrawingEditor:
         self.drag_start_x = 0
         self.drag_start_y = 0
 
+        self.bounding_rect = None
         self.proximity_threshold = 10
         
         # self.rect_type=None
@@ -119,19 +148,42 @@ class DrawingEditor:
             # self.canvas.create_line(50, 100, 250, 100, fill=color, width=2)
 
     def dehighlight_object(self):
+        print(self.selected_objects)
         for selected_object in self.selected_objects:
+            if type(selected_object) != int:
+                print(selected_object)
+                for object in selected_object.objects:
+                    self.canvas.itemconfig(object, width=1)
+                if self.bounding_rect:
+                    self.canvas.delete(self.bounding_rect)
+                    self.bounding_rect = None
             self.canvas.itemconfig(selected_object, width=1)
         self.selected_objects = []
 
     def highlight_object(self, object):
-        self.canvas.itemconfig(object, width=5)
-        if object not in self.selected_objects:
+        # parent_group = self.parent_group(object)
+        if type(object) != int:
+            self.canvas.delete(self.bounding_rect)
+            coords = object.get_bounding_box()
+            self.bounding_rect = self.canvas.create_rectangle(*coords, outline="black", dash=(2,4))
             self.selected_objects.append(object)
+            print(self.selected_objects)
+            for object in object.objects:
+                self.canvas.itemconfig(object, width=5)
 
-    # def get_closest_object(self, event):
-    #     closest_element = self.get_closest_element(event)[0]
-    #     pass
+        else:
+            self.canvas.itemconfig(object, width=5)
+            if object not in self.selected_objects:
+                self.selected_objects.append(object)
 
+    def get_closest_object(self, event):
+        closest_element = self.get_closest_element(event)
+        parent_group = self.parent_group(closest_element)
+        if parent_group:
+            return parent_group
+        else:
+            return closest_element
+    
     def get_closest_element(self, event):
         closest_objects = self.canvas.find_overlapping(
             event.x - self.proximity_threshold, event.y - self.proximity_threshold,
@@ -179,7 +231,7 @@ class DrawingEditor:
 
     def change_object_color(self, obj, color):
         # Change the color of the selected object
-        self.canvas.itemconfig(obj,fill=color)
+        self.canvas.itemconfig(obj, fill=color)
 
     def change_type(self, obj, type1):
     # Change the type of the selected object
@@ -251,6 +303,14 @@ class DrawingEditor:
         # Select button
         self.rect_button = Button(self.left_panel, title="Select", command=lambda: self.set_current_object(None), **button_style)
         self.rect_button.pack(fill=tk.X)
+
+        # Select button
+        self.rect_button = Button(self.left_panel, title="Group", command=lambda: self.group_objects(), **button_style)
+        self.rect_button.pack(fill=tk.X)
+        
+        # Select button
+        self.rect_button = Button(self.left_panel, title="Ungroup", command=lambda: self.ungroup(None), **button_style)
+        self.rect_button.pack(fill=tk.X)
         
         # Event bindings
         self.canvas.bind("<Control-c>", self.copy_object_shortcut)
@@ -263,11 +323,12 @@ class DrawingEditor:
 
     def on_canvas_click(self, event):
         # Handle canvas click event
-
-        nearest_object = self.get_closest_element(event)
+        
+        nearest_object = self.get_closest_object(event)
         if nearest_object in self.selected_objects:
             self.dragging = True
         else:
+            self.canvas.delete(self.bounding_rect)
             self.drawing = True
 
         self.start_x = event.x
@@ -293,7 +354,7 @@ class DrawingEditor:
 
         if not self.selected_type:
             if event.x == self.start_x and event.y == self.start_y:
-                drawing_object = self.get_closest_element(event)
+                drawing_object = self.get_closest_object(event)
                 self.highlight_object(drawing_object)
         
         self.dragging = False
@@ -309,14 +370,19 @@ class DrawingEditor:
         elif self.dragging and self.selected_objects:
             dx = event.x - self.start_x
             dy = event.y - self.start_y
+            self.start_x = event.x
+            self.start_y = event.y
+
             for selected_object in self.selected_objects:
-                
-                # Move the selected object by the offset
-                self.canvas.move(selected_object, dx, dy)
-                
-                # Update drag start position
-                self.start_x = event.x
-                self.start_y = event.y
+                if type(selected_object) != int:
+                    for object in selected_object.objects:
+                        self.canvas.move(object, dx, dy)
+                    
+                    if self.bounding_rect:
+                        self.canvas.move(self.bounding_rect, dx, dy)
+
+                else:
+                    self.canvas.move(selected_object, dx, dy)
     
     def create_rectangle(self, x1, y1, x2, y2, radius,type_rect, **kwargs):
         points = [x1 + radius, y1,
@@ -386,7 +452,7 @@ class DrawingEditor:
         return str(hex_color)
 
     def select_object(self, object):
-    # Select object on canvas
+        # Select object on canvas
         pass
 
     def delete_object(self, object):
@@ -432,13 +498,28 @@ class DrawingEditor:
         # Open dialog box to edit object properties
         pass
 
-    def group_objects(self, objects):
-        # Group selected objects
-        pass
+    def parent_group(self, object):
+        for group in self.groups:
+            if object in group.objects:
+                return group
+        
+        return None
+
+    def group_objects(self):
+        group = GroupComposite(self.master, self.canvas)
+        for obj in self.selected_objects:
+            group.add_object(obj)
+        self.groups.append(group)
 
     def ungroup_objects(self, group):
-        # Ungroup selected group
-        pass
+        new_selected_objects = []
+        for obj in self.selected_objects:
+            if obj.group:
+                obj.group.remove_object(obj)
+                obj.group = None
+            else:
+                new_selected_objects.append(obj)
+        self.selected_objects = new_selected_objects
 
     def save_drawing(self, filename):
         file_path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text files", "*.txt")])
