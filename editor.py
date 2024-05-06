@@ -88,55 +88,6 @@ class DrawingEditor:
         self.canvas = tk.Canvas(self.master, width=WIDTH, height=HEIGHT, bg="white")
         self.canvas.pack(side=tk.RIGHT)
 
-        # Add Left Panel
-        self.left_panel = tk.Frame(self.master, width=150)
-        self.left_panel.pack(side=tk.LEFT, fill=tk.Y)
-        self.left_panel.pack_propagate(False)
-        # self.color_picker_label = tk.Label(self.left_panel, text="Select Color:", **button_style)
-        # self.color_picker_label.pack(fill=tk.X)
-        self.color_picker_button = Button(self.left_panel, title="Select Color", command=self.pick_color)
-        self.color_picker_button.pack(fill=tk.X)
-
-        self.color_variable = tk.StringVar(self.master)
-        self.color_variable.set("(0,0,0)");  # Default color
-
-        colors = ["black", "red", "blue", "green", "yellow"]  # Add more colors as needed
-
-        # self.color_picker = tk.OptionMenu(self.left_panel, self.color_variable, *colors)
-        # self.color_picker.config(width=20, **button_style)
-        # self.color_picker.pack(fill=tk.X)
-        # Add buttons with styling
-        # self.line_button = Button(self.left_panel, title="Draw Line", command=lambda: self.set_current_object("line"), **button_style)
-        # self.line_button = Button(self.left_panel, title="Draw Line",icon="fa-long-arrow-right", command=lambda: self.set_current_object("line"), **button_style)
-        self.line_button = Button(self.left_panel, title="Draw Line", icon="\u2014", command=lambda: self.set_current_object("line"), **button_style)
-        self.line_button.config(width=20)
-        self.line_button.pack(side=tk.TOP, fill=tk.X)
-
-        self.rect_button = Button(self.left_panel, title="Draw Rectangle",icon="\uf0c8", command=lambda: self.set_current_object("rectangle"), **button_style)
-        self.rect_button.config(width=20)
-        self.rect_button.pack(fill=tk.X)
-
-        self.rect_button = Button(self.left_panel, title="Open File", command=lambda: self.open_drawing("1.txt"), **button_style)
-        self.rect_button.config(width=20)
-        self.rect_button.pack(fill=tk.X)
-
-        self.rect_button = Button(self.left_panel, title="Save File", command=lambda: self.save_drawing("1.txt"), **button_style)
-        self.rect_button.config(width=20)
-        self.rect_button.pack(fill=tk.X)
-
-        self.rect_button = Button(self.left_panel, title="XML", command=lambda: self.export_to_xml("4"), **button_style)
-        self.rect_button.config(width=20)
-        self.rect_button.pack(fill=tk.X)
-        
-        # Select button
-        self.rect_button = Button(self.left_panel, title="Select", command=lambda: self.set_current_object(None), **button_style)
-        self.rect_button.config(width=20)
-        self.rect_button.pack(fill=tk.X)
-        
-        # self.rect_button = Button(self.left_panel, title="Select", command=lambda: self.set_current_object(None), **button_style)
-        # self.rect_button.config(width=20)
-        # self.rect_button.pack(fill=tk.X)
-
         self.selected_object = None
         self.objects = []
 
@@ -144,14 +95,6 @@ class DrawingEditor:
         self.create_toolbar()
         self.clipboard_object = None # Set focus to the canvas
 
-        # Event bindings
-        self.canvas.bind("<Control-c>", self.copy_object_shortcut)
-        self.canvas.bind("<Control-v>", self.paste_object_shortcut)
-        self.canvas.bind("<Button-1>", self.on_canvas_click)
-        self.canvas.bind("<ButtonRelease-1>", self.on_canvas_release)
-        self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
-        self.canvas.bind("<Button-3>",self.on_canvas_right_click)
-        self.canvas.focus_set()
         # self.canvas.bind("<ButtonRelease-1>", self.save_drawing)
         self.start_x = None
         self.start_y = None
@@ -246,7 +189,54 @@ class DrawingEditor:
 
     def create_toolbar(self):
         # Create toolbar buttons or menu here
-        pass
+        self.left_panel = tk.Frame(self.master, width=150)
+        self.left_panel.pack(side=tk.LEFT, fill=tk.Y)
+        self.left_panel.pack_propagate(False)
+        # self.color_picker_label = tk.Label(self.left_panel, text="Select Color:", **button_style)
+        # self.color_picker_label.pack(fill=tk.X)
+        self.color_picker_button = Button(self.left_panel, title="Select Color", command=self.pick_color)
+        self.color_picker_button.pack(fill=tk.X)
+
+        self.color_variable = tk.StringVar(self.master)
+        self.color_variable.set("(0,0,0)");  # Default color
+
+        colors = ["black", "red", "blue", "green", "yellow"]  # Add more colors as needed
+
+        # self.color_picker = tk.OptionMenu(self.left_panel, self.color_variable, *colors)
+        # self.color_picker.config(width=20, **button_style)
+        # self.color_picker.pack(fill=tk.X)
+        # Add buttons with styling
+        # self.line_button = Button(self.left_panel, title="Draw Line", command=lambda: self.set_current_object("line"), **button_style)
+        # self.line_button = Button(self.left_panel, title="Draw Line",icon="fa-long-arrow-right", command=lambda: self.set_current_object("line"), **button_style)
+        
+        self.line_button = Button(self.left_panel, title="Draw Line", icon="\u2014", command=lambda: self.set_current_object("line"), **button_style)
+        self.line_button.pack(side=tk.TOP, fill=tk.X)
+
+        self.rect_button = Button(self.left_panel, title="Draw Rectangle",icon="\uf0c8", command=lambda: self.set_current_object("rectangle"), **button_style)
+        self.rect_button.pack(fill=tk.X)
+
+        self.rect_button = Button(self.left_panel, title="Open File", command=lambda: self.open_drawing("1.txt"), **button_style)
+        self.rect_button.pack(fill=tk.X)
+
+        self.rect_button = Button(self.left_panel, title="Save File", command=lambda: self.save_drawing("1.txt"), **button_style)
+        self.rect_button.pack(fill=tk.X)
+
+        # XML button
+        self.rect_button = Button(self.left_panel, title="XML", command=lambda: self.export_to_xml("4"), **button_style)
+        self.rect_button.pack(fill=tk.X)
+        
+        # Select button
+        self.rect_button = Button(self.left_panel, title="Select", command=lambda: self.set_current_object(None), **button_style)
+        self.rect_button.pack(fill=tk.X)
+        
+        # Event bindings
+        self.canvas.bind("<Control-c>", self.copy_object_shortcut)
+        self.canvas.bind("<Control-v>", self.paste_object_shortcut)
+        self.canvas.bind("<Button-1>", self.on_canvas_click)
+        self.canvas.bind("<ButtonRelease-1>", self.on_canvas_release)
+        self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
+        self.canvas.bind("<Button-3>",self.on_canvas_right_click)
+        self.canvas.focus_set()
 
     def on_canvas_click(self, event):
         # Handle canvas click event
