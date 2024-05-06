@@ -40,13 +40,28 @@ def random_color():
     color_hex = "#{:02x}{:02x}{:02x}".format(red, green, blue)
     return color_hex
 
-# class DrawingObject:
-#     def __init__(self):
-#         pass
+class DrawingObject:
+    def __init__(self, start_x, start_y, end_x, end_y, fill_color):
+        # self.tk_object = object
+        self.fill_color = fill_color
 
-# class Line:
-#     def __init__(self):
+    def convert_to_xml():
+        pass
 
+class Line(DrawingObject):
+    def __init__(self, master, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tk_object = master.create_line(*args, **kwargs)
+
+class Rectangle(DrawingObject):
+    def __init__(self, master, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tk_object = master.create_rectangle(*args, **kwargs)
+        self.corner_style = "square"
+
+class GroupComposite(DrawingObject):
+    def __init__(self, master, *args, **kwargs):
+        self.group = []
 
 class DrawingEditor:
     def __init__(self, master):
@@ -71,21 +86,24 @@ class DrawingEditor:
         self.color_picker = tk.OptionMenu(self.left_panel, self.color_variable, *colors)
         self.color_picker.config(width=20, **button_style)
         self.color_picker.pack(fill=tk.X)
-        # Add buttons with styling
+
+        # Line Button
         self.line_button = Button(self.left_panel, title="Draw Line", command=lambda: self.set_current_object("line"), **button_style)
         self.line_button.config(width=20)
         self.line_button.pack(side=tk.TOP, fill=tk.X)
 
+        # Rectangle button
         self.rect_button = Button(self.left_panel, title="Draw Rectangle", command=lambda: self.set_current_object("rectangle"), **button_style)
         self.rect_button.config(width=20)
         self.rect_button.pack(fill=tk.X)
         
+        # Select button
         self.rect_button = Button(self.left_panel, title="Select", command=lambda: self.set_current_object(None), **button_style)
         self.rect_button.config(width=20)
         self.rect_button.pack(fill=tk.X)
 
         self.selected_object = None
-        self.objects = []
+        # self.objects = []
 
         # Toolbar or menu creation
         self.create_toolbar()
@@ -125,6 +143,7 @@ class DrawingEditor:
 
             # Display the context menu at the right-click position
             menu.tk_popup(event.x_root, event.y_root)
+
     def change_object_color(self, obj, color):
         # Change the color of the selected object
         self.canvas.itemconfig(obj, fill=color)
@@ -144,15 +163,17 @@ class DrawingEditor:
 
         if self.current_object and self.select:
             self.canvas.delete(self.current_object)
+        self.current_object = None
 
     def on_canvas_release(self, event):
         # Handle canvas release event
         if self.drawing:
             if self.current_object:
                 self.canvas.delete(self.current_object)  # Delete the temporary line
-                self.current_object = self.draw_object(self.selected_object, self.start_x, self.start_y, event.x, event.y)
+                self.current_object = self.draw_object(self.selected_object, self.start_x, self.start_y, event.x, event.y, realObject=True)
                 self.select = (self.selected_object == None)
             self.drawing = False
+            print(self.objects)
 
     def on_mouse_drag(self, event):
         # Handle mouse drag event
@@ -162,14 +183,21 @@ class DrawingEditor:
             self.current_object = self.draw_object(self.selected_object, self.start_x, self.start_y, event.x, event.y, fill="black")
             self.select = True
 
-    def draw_object(self, object_type, start_x, start_y, end_x, end_y, **kwargs):
+    def draw_object(self, object_type, start_x, start_y, end_x, end_y, realObject=False, **kwargs):
         # Draw object on canvas based on type and coordinates
         color = self.color_variable.get()
         kwargs["fill"] = color
         if object_type == "line":
-            return self.canvas.create_line(start_x, start_y, end_x, end_y, **kwargs)
+            line_object = Line(self.canvas, start_x, start_y, end_x, end_y, kwargs)
+            # if realObject:
+            #     self.objects.append(line_object)
+            return line_object.tk_object
+        
         elif object_type == "rectangle":
-            return self.canvas.create_rectangle(start_x, start_y, end_x, end_y, **kwargs)
+            rect_object = Rectangle(self.canvas, start_x, start_y, end_x, end_y, kwargs)
+            # if realObject:
+            #     self.objects.append(rect_object)
+            return rect_object.tk_object
         else:
             kwargs["fill"] = None
             return self.canvas.create_rectangle(start_x, start_y, end_x, end_y, dash=(2,4), **kwargs)
